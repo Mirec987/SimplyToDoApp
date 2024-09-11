@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using ToDoApp.Data;
+using ToDoApp.Hubs;
 
 namespace ToDoApp
 {
@@ -9,19 +10,29 @@ namespace ToDoApp
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // Add services to the container.
-
+            // SQL database connection
             builder.Services.AddDbContext<ToDoContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+            // Loading Redis connection string from appsettings.json
+            var redisConnectionString = builder.Configuration.GetSection("Redis")["ConnectionString"];
+
+            // Redis cache service
+            builder.Services.AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = redisConnectionString;
+                options.InstanceName = "ToDoApp_";
+            });
+
+            // SignalR
+            builder.Services.AddSignalR();
+
             builder.Services.AddControllers();
-            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
             var app = builder.Build();
 
-            // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
@@ -32,6 +43,8 @@ namespace ToDoApp
 
             app.UseAuthorization();
 
+            // SignalR Hub
+            app.MapHub<NotificationHub>("/notifications");
 
             app.MapControllers();
 
